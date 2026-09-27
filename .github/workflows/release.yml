@@ -64,7 +64,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add pom.xml
-          git commit -m "chore: release ${{ steps.ver.outputs.tag }}"
+          # A freshly extracted repo's committed version can coincidentally already equal the
+          # first computed release version (e.g. both "1.0.0-beta1") — in that case there's
+          # nothing to commit, but we still need to tag+push the current HEAD.
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: release ${{ steps.ver.outputs.tag }}"
+          else
+            echo "pom.xml already at ${{ steps.ver.outputs.version }} — tagging current HEAD without a new commit"
+          fi
           git tag "${{ steps.ver.outputs.tag }}"
           git push origin HEAD:main "${{ steps.ver.outputs.tag }}"
 
