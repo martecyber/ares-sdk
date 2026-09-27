@@ -1,0 +1,56 @@
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+.factorypath
+.flattened-pom.xml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Java / Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.jar
+*.log
+hs_err_pid*
+replay_pid*
+
+# Node / pnpm
+node_modules/
+dist/
+.pnpm-store/
+*.tsbuildinfo
+.vite/
+.turbo/
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Docker volumes (bind mounts in infra/data/)
+infra/data/
+
+# Logs
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.eggs/
+dist/
+build/
+
+# Editor swap
+*.swp
+*~

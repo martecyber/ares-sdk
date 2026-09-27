@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
+>
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.martecyber.ares</groupId>
+    <artifactId>ares-sdk</artifactId>
+    <version>${revision}</version>
+    <packaging>jar</packaging>
+    <name>Ares ASM — plugin SDK</name>
+    <description>
+        The stable, publishable contract a plugin compiles against: the extension-point
+        interfaces (ImportParser, IntegrationActionHandler, IntegrationClient,
+        DetectionUrlReferenceParser, PluginComponent, PluginLifecycle, PluginRestController,
+        PluginExtensionRegistry) plus their own supporting DTOs/enums — deliberately NOT the whole
+        of ares-core. See ares-plugins/DEVELOPING.md for how a plugin uses this. Has zero
+        dependency on ares-core itself (ares-core depends on THIS, not the other way around), so
+        it can be built, published, and depended on entirely independently of the private
+        ares-core/ares-asm monorepo — the point of extracting it in the first place.
+    </description>
+
+    <properties>
+        <maven.compiler.release>21</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <revision>1.0.0-beta1</revision>
+        <spring-boot.version>3.5.7</spring-boot.version>
+    </properties>
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>Maven Packages</name>
+            <url>https://maven.pkg.github.com/martecyber/ares-sdk</url>
+        </repository>
+    </distributionManagement>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Only for PluginLifecycle's JdbcTemplate parameter — provided, not compile: a plugin
+             implementing PluginLifecycle already runs inside ares-core's own Spring context,
+             which supplies the real JdbcTemplate bean; this module never instantiates one. -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>${project.artifactId}-${project.version}</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.4</version>
+            </plugin>
+            <!-- Pinned: unlike every other module here, this one actually needs `mvn install`
+                 (ares-core depends on it locally) — Maven's own unpinned default version for this
+                 plugin resolves to something whose transitive deps aren't in this offline
+                 environment's cache. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <version>3.1.4</version>
+            </plugin>
+            <!-- Resolves the ${revision} CI-friendly property into a real <version> in the POM
+                 that actually gets deployed/installed — otherwise consumers resolving this from
+                 GitHub Packages would see a literal unresolved "${revision}" in the POM. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <configuration>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

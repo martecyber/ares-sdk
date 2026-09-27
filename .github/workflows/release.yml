@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Release channel"
+        required: true
+        type: choice
+        options: [release, rc, beta, alpha]
+      base_version:
+        description: "Override MAJOR.MINOR.PATCH (blank = keep current)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'zulu'
+          server-id: github
+
+      # Tags are the source of truth for "next N" per channel — no separate counter file.
+      # release has no N at all (just MAJOR.MINOR.PATCH); rc/beta/alpha each track their own
+      # count independently, resetting to 1 whenever MAJOR.MINOR.PATCH changes.
+      - name: Compute release version
+        id: ver
+        run: |
+          set -euo pipefail
+          CURRENT="$(grep -m1 -oP '(?<=<revision>)[^<]+' pom.xml)"
+          MMP="${{ inputs.base_version }}"
+          if [ -z "$MMP" ]; then
+            MMP="$(echo "$CURRENT" | sed -E 's/-.*$//')"
+          fi
+          CHANNEL="${{ inputs.channel }}"
+          if [ "$CHANNEL" = "release" ]; then
+            VERSION="$MMP"
+            TAG="v${MMP}"
+          else
+            PREFIX="v${MMP}-${CHANNEL}"
+            LAST="$(git tag -l "${PREFIX}*" | sed -E "s/^${PREFIX}//" | sort -n | tail -1)"
+            NEXT=$(( ${LAST:-0} + 1 ))
+            VERSION="${MMP}-${CHANNEL}${NEXT}"
+            TAG="${PREFIX}${NEXT}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Bump pom.xml, commit, and tag
+        run: |
+          set -euo pipefail
+          sed -i -E "s#<revision>[^<]+</revision>#<revision>${{ steps.ver.outputs.version }}</revision>#" pom.xml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pom.xml
+          git commit -m "chore: release ${{ steps.ver.outputs.tag }}"
+          git tag "${{ steps.ver.outputs.tag }}"
+          git push origin HEAD:main "${{ steps.ver.outputs.tag }}"
+
+      - name: Build, test, and publish release package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mvn -B -ntp deploy

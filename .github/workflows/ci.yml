@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'zulu'
+          server-id: github
+
+      # Intermediate version = whatever is committed in pom.xml's <revision>, plus the short
+      # commit hash as SemVer build metadata — never rewrites the committed pom.xml itself.
+      - name: Compute intermediate version
+        id: ver
+        run: |
+          set -euo pipefail
+          BASE="$(grep -m1 -oP '(?<=<revision>)[^<]+' pom.xml)"
+          echo "version=${BASE}+${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build, test, and publish intermediate package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mvn -B -ntp "-Drevision=${{ steps.ver.outputs.version }}" deploy
